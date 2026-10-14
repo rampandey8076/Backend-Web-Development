@@ -1,0 +1,19 @@
+{
+  "name": "kalvium-authorization-rbac",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Kalvium LU 4.9 Authorization and RBAC assignment",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node tests/run.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "supertest": "^7.3.1"
+  }
+}
