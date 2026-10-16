@@ -1,26 +1,37 @@
 'use strict';
-// middleware/rateLimiter.js
-//
-// YOUR TASK: replace this pass-through with a real rate limiter.
-//
-// Right now this middleware lets EVERY request through, so the login route can be
-// brute-forced without limit. Build a strict limiter with `express-rate-limit`
-// (already in package.json) that is exported as the middleware used by the three
-// auth routes in src/routes/auth.js.
-//
-// Requirements (checked by the tests):
-//   - windowMs: 15 minutes
-//   - max: 5 attempts per window per IP
-//   - after the limit, respond with 429 and a `Retry-After` header
-//   - standardHeaders: true, legacyHeaders: false
-//   - (recommended) skipSuccessfulRequests: true so only FAILED attempts count
-//
-// Also add a COMMENT explaining how a Redis-backed store (rate-limit-redis) would
-// replace the default in-memory store in a multi-instance deployment, and why the
-// in-memory store is not enough when several instances run behind a load balancer.
-//
-// Hint: express-rate-limit returns a middleware function — export it directly:
-//   const rateLimit = require('express-rate-limit');
-//   module.exports = rateLimit({ ...options });
 
-module.exports = (req, res, next) => next(); // TODO: replace this stub
+const rateLimit = require('express-rate-limit');
+
+const WINDOW_MS = 15 * 60 * 1000;
+
+const authLimiter = rateLimit({
+  windowMs: WINDOW_MS,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+
+  handler: (req, res) => {
+    const resetTime = req.rateLimit && req.rateLimit.resetTime;
+
+    const retryAfter = resetTime instanceof Date
+      ? Math.max(1, Math.ceil((resetTime.getTime() - Date.now()) / 1000))
+      : Math.ceil(WINDOW_MS / 1000);
+
+    res.set('Retry-After', String(retryAfter));
+
+    return res.status(429).json({
+      error: 'Too many requests, please try again later.',
+    });
+  },
+});
+
+// Production scaling note:
+// The default in-memory store keeps counters separately in each Node.js
+// process. Behind a load balancer, requests distributed across multiple
+// instances can therefore receive a separate quota on each instance.
+// For a multi-instance deployment, rate-limit-redis can replace the default
+// store with a RedisStore connected to shared Redis counters. All instances
+// then enforce the same limit instead of maintaining independent counters.
+
+module.exports = authLimiter;
